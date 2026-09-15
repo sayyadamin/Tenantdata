@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tenant Management Dashboard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172033}
+header{background:linear-gradient(135deg,#172554,#2563eb);color:#fff;padding:22px}
+.container{max-width:1500px;margin:auto;padding:18px}
+h1{margin:0 0 6px;font-size:26px}header p{margin:0;opacity:.85}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.card,.panel{background:#fff;border-radius:14px;box-shadow:0 4px 18px #0001}
+.card{padding:18px}.card small{color:#64748b}.card strong{display:block;font-size:25px;margin-top:8px}
+.tabs,.toolbar,.actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.tabs{margin-bottom:15px}.tab,.btn{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:700}
+.tab{background:#e2e8f0}.tab.active{background:#2563eb;color:#fff}.btn{background:#2563eb;color:#fff}.green{background:#16a34a!important}.red{background:#dc2626!important}.gray{background:#64748b!important}.orange{background:#ea580c!important}
+.panel{padding:18px;margin-bottom:18px}.toolbar{margin-bottom:14px}.toolbar input,.toolbar select{padding:10px;border:1px solid #cbd5e1;border-radius:8px}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1250px}th,td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:13px;white-space:nowrap}th{background:#f8fafc}
+.badge{padding:5px 9px;border-radius:20px;font-weight:bold;font-size:12px}.paid{background:#dcfce7;color:#166534}.unpaid{background:#fee2e2;color:#991b1b}.partial{background:#fef3c7;color:#92400e}
+.hidden{display:none}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:15px;z-index:10}.modal.show{display:flex}.modalbox{background:#fff;border-radius:16px;width:min(920px,100%);max-height:94vh;overflow:auto;padding:20px}
+.formgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field label{display:block;font-size:12px;font-weight:bold;color:#475569;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px}.full,.sectiontitle{grid-column:1/-1}.sectiontitle{font-weight:bold;color:#2563eb;border-bottom:1px solid #e2e8f0;padding:8px 0}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:15px}.setting{background:#f8fafc;padding:15px;border-radius:10px}.setting input{width:100%;padding:10px;margin-top:7px;border:1px solid #cbd5e1;border-radius:8px}
+@media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}.formgrid,.settings{grid-template-columns:1fr}}
+@media print{.tabs,.toolbar,.actions,button{display:none!important}body{background:#fff}.panel,.card{box-shadow:none}}
+</style>
+</head>
+<body>
+<header><div class="container"><h1>🏢 Tenant Management Dashboard</h1><p>Building A & Building B | Rent, Electricity, Maintenance & Tenant Records</p></div></header>
+<div class="container">
+<div class="cards">
+<div class="card"><small>Total Tenants</small><strong id="totalTenants">0</strong></div>
+<div class="card"><small>Monthly Rent</small><strong id="totalRent">₹0</strong></div>
+<div class="card"><small>Total Collected</small><strong id="collected">₹0</strong></div>
+<div class="card"><small>Total Pending</small><strong id="pending">₹0</strong></div>
+</div>
+
+<div class="tabs">
+<button class="tab active" onclick="showTab('all',this)">All Tenants</button>
+<button class="tab" onclick="showTab('A',this)">Building A</button>
+<button class="tab" onclick="showTab('B',this)">Building B</button>
+<button class="tab" onclick="showTab('settings',this)">⚙️ Settings</button>
+</div>
+
+<section id="tenantSection" class="panel">
+<div class="toolbar">
+<button class="btn green" onclick="openModal()">＋ Add Tenant</button>
+<input id="search" placeholder="🔍 Search tenant, room, mobile" oninput="render()">
+<select id="statusFilter" onchange="render()"><option value="">All Payment Status</option><option>Paid</option><option>Partial</option><option>Unpaid</option></select>
+<select id="buildingFilter" onchange="render()"><option value="">All Buildings</option><option value="A">Building A</option><option value="B">Building B</option></select>
+<button class="btn gray" onclick="exportCSV()">📥 Export CSV</button>
+<button class="btn orange" onclick="window.print()">🖨 Print</button>
+</div>
+<div class="tablewrap"><table><thead><tr>
+<th>Building</th><th>Room</th><th>Tenant</th><th>Mobile</th><th>Occupation</th><th>Since</th><th>Rent</th><th>Prev Reading</th><th>Current Reading</th><th>Units</th><th>Electricity</th><th>Maintenance</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th>
+</tr></thead><tbody id="tbody"></tbody></table></div>
+</section>
+
+<section id="settingsSection" class="panel hidden">
+<h2>⚙️ Common Settings</h2>
+<div class="settings">
+<div class="setting"><b>Electricity Charge per Unit (₹)</b><input id="unitRate" type="number" min="0" step="0.01"></div>
+<div class="setting"><b>Monthly Maintenance Amount (₹)</b><input id="maintenance" type="number" min="0" step="0.01"></div>
+</div>
+<div class="actions" style="margin-top:15px"><button class="btn green" onclick="saveSettings()">Save Settings</button></div>
+</section>
+</div>
+
+<div id="modal" class="modal"><div class="modalbox">
+<h2 id="modalTitle">Add Tenant</h2>
+<form id="tenantForm" onsubmit="saveTenant(event)">
+<input type="hidden" id="editId">
+<div class="formgrid">
+<div class="sectiontitle">🏢 Room & Tenant Information</div>
+<div class="field"><label>Building *</label><select id="building" required><option value="A">Building A</option><option value="B">Building B</option></select></div>
+<div class="field"><label>Room No. *</label><input id="room" required></div>
+<div class="field"><label>Tenant Name *</label><input id="name" required></div>
+<div class="field"><label>Mobile No.</label><input id="mobile"></div>
+<div class="field"><label>Occupation / Work</label><input id="occupation"></div>
+<div class="field"><label>Living Since</label><input id="since" type="date"></div>
+<div class="field"><label>Aadhaar No.</label><input id="aadhaar" maxlength="12"></div>
+<div class="field full"><label>Current Address</label><textarea id="address" rows="2"></textarea></div>
+<div class="field full"><label>Previous Address</label><textarea id="previousAddress" rows="2"></textarea></div>
+<div class="field full"><label>Family Members / Persons Staying</label><textarea id="family" rows="2"></textarea></div>
+<div class="sectiontitle">💡 Electricity & Rent</div>
+<div class="field"><label>Previous Light Reading</label><input id="prev" type="number" min="0" value="0"></div>
+<div class="field"><label>Current Light Reading</label><input id="current" type="number" min="0" value="0"></div>
+<div class="field"><label>Monthly Rent (₹) *</label><input id="rent" type="number" min="0" required></div>
+<div class="field"><label>Rent/Total Paid (₹)</label><input id="paid" type="number" min="0" value="0"></div>
+<div class="field full"><label>Notes</label><textarea id="note" rows="2"></textarea></div>
+<div class="field full"><div id="calcPreview"></div></div>
+</div>
+<div class="actions" style="margin-top:18px"><button type="button" class="btn gray" onclick="closeModal()">Cancel</button><button class="btn green">Save Tenant</button></div>
+</form>
+</div></div>
+
+<script>
+const DATA_KEY='tenantDashboardDataV2', SETTINGS_KEY='tenantDashboardSettingsV2';
+let data=JSON.parse(localStorage.getItem(DATA_KEY)||'[]');
+let settings=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{"unitRate":10,"maintenance":0}');
+let currentTab='all';
+const $=id=>document.getElementById(id);
+const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function calc(t){
+ const units=Math.max(0,(+t.current||0)-(+t.prev||0));
+ const electricity=units*(+settings.unitRate||0);
+ const total=(+t.rent||0)+electricity+(+settings.maintenance||0);
+ const paid=Math.min(+t.paid||0,total);
+ const balance=Math.max(0,total-paid);
+ const status=balance===0?'Paid':paid>0?'Partial':'Unpaid';
+ return {units,electricity,total,paid,balance,status};
+}
+function persist(){localStorage.setItem(DATA_KEY,JSON.stringify(data))}
+function render(){
+ const q=$('search').value.toLowerCase(),sf=$('statusFilter').value,bf=$('buildingFilter').value;
+ const list=data.filter(t=>{const c=calc(t);return(currentTab==='all'||t.building===currentTab)&&(!q||[t.name,t.room,t.mobile,t.occupation,t.aadhaar].join(' ').toLowerCase().includes(q))&&(!sf||c.status===sf)&&(!bf||t.building===bf)});
+ $('tbody').innerHTML=list.map(t=>{const c=calc(t);return `<tr>
+<td>Building ${esc(t.building)}</td><td><b>${esc(t.room)}</b></td><td><b>${esc(t.name)}</b></td><td>${esc(t.mobile||'-')}</td><td>${esc(t.occupation||'-')}</td><td>${t.since||'-'}</td><td>${money(t.rent)}</td><td>${t.prev??0}</td><td>${t.current??0}</td><td>${c.units}</td><td>${money(c.electricity)}</td><td>${money(settings.maintenance)}</td><td><b>${money(c.total)}</b></td><td>${money(c.paid)}</td><td>${money(c.balance)}</td><td><span class="badge ${c.status.toLowerCase()}">${c.status}</span></td><td><button class="btn" onclick="editTenant('${t.id}')">Edit</button> <button class="btn red" onclick="deleteTenant('${t.id}')">Delete</button></td></tr>`}).join('')||'<tr><td colspan="17" style="text-align:center;padding:30px">No tenant found.</td></tr>';
+ updateCards();$('unitRate').value=settings.unitRate;$('maintenance').value=settings.maintenance;
+}
+function updateCards(){let rent=data.reduce((s,t)=>s+(+t.rent||0),0),col=data.reduce((s,t)=>s+calc(t).paid,0),pen=data.reduce((s,t)=>s+calc(t).balance,0);$('totalTenants').textContent=data.length;$('totalRent').textContent=money(rent);$('collected').textContent=money(col);$('pending').textContent=money(pen)}
+function openModal(t=null){
+ $('modal').classList.add('show');$('modalTitle').textContent=t?'Edit Tenant':'Add Tenant';
+ $('editId').value=t?.id||'';$('building').value=t?.building||'A';$('room').value=t?.room||'';$('name').value=t?.name||'';$('mobile').value=t?.mobile||'';$('occupation').value=t?.occupation||'';$('since').value=t?.since||'';$('aadhaar').value=t?.aadhaar||'';$('address').value=t?.address||'';$('previousAddress').value=t?.previousAddress||'';$('family').value=t?.family||'';$('prev').value=t?.prev??0;$('current').value=t?.current??0;$('rent').value=t?.rent??0;$('paid').value=t?.paid??0;$('note').value=t?.note||'';updatePreview();
+}
+function closeModal(){$('modal').classList.remove('show')}
+function saveTenant(e){e.preventDefault();const id=$('editId').value||Date.now().toString();const t={id,building:$('building').value,room:$('room').value,name:$('name').value,mobile:$('mobile').value,occupation:$('occupation').value,since:$('since').value,aadhaar:$('aadhaar').value,address:$('address').value,previousAddress:$('previousAddress').value,family:$('family').value,prev:+$('prev').value||0,current:+$('current').value||0,rent:+$('rent').value||0,paid:+$('paid').value||0,note:$('note').value};const i=data.findIndex(x=>x.id===id);if(i>=0)data[i]=t;else data.push(t);persist();closeModal();render()}
+function editTenant(id){const t=data.find(x=>x.id===id);if(t)openModal(t)}
+function deleteTenant(id){if(confirm('Delete this tenant?')){data=data.filter(t=>t.id!==id);persist();render()}}
+function saveSettings(){settings={unitRate:+$('unitRate').value||0,maintenance:+$('maintenance').value||0};localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));render();alert('Settings saved successfully.')}
+function showTab(tab,btn){currentTab=tab;document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');$('tenantSection').classList.toggle('hidden',tab==='settings');$('settingsSection').classList.toggle('hidden',tab!=='settings');render()}
+function updatePreview(){const c=calc({prev:+$('prev').value||0,current:+$('current').value||0,rent:+$('rent').value||0,paid:+$('paid').value||0});$('calcPreview').innerHTML=`Units: <b>${c.units}</b> × ${money(settings.unitRate)} = <b>${money(c.electricity)}</b> | Total: <b>${money(c.total)}</b> | Balance: <b>${money(c.balance)}</b> | Status: <b>${c.status}</b>`}
+['prev','current','rent','paid'].forEach(id=>$(id).addEventListener('input',updatePreview));
+function exportCSV(){const headers=['Building','Room','Tenant','Mobile','Occupation','Living Since','Aadhaar','Current Address','Previous Address','Family Members','Previous Reading','Current Reading','Units','Unit Rate','Electricity','Rent','Maintenance','Total','Paid','Balance','Status','Notes'];const rows=data.map(t=>{const c=calc(t);return[t.building,t.room,t.name,t.mobile,t.occupation,t.since,t.aadhaar,t.address,t.previousAddress,t.family,t.prev,t.current,c.units,settings.unitRate,c.electricity,t.rent,settings.maintenance,c.total,c.paid,c.balance,c.status,t.note]});const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\\n');const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Tenant_Data.csv';a.click();URL.revokeObjectURL(a.href)}
+render();
+</script>
+</body>
+</html>
