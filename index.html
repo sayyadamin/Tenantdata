@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tenant Management</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;font-family:Arial;color:#172033}header{background:#1d4ed8;color:white;padding:20px}.wrap{max-width:1500px;margin:auto;padding:16px}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.card,.panel{background:white;border-radius:13px;padding:16px;box-shadow:0 3px 15px #0001;margin:12px 0}.card b{display:block;font-size:23px;margin-top:7px}.tabs,.toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.tabs button,.btn,button{border:0;border-radius:9px;padding:10px 14px;background:#2563eb;color:white;font-weight:600;cursor:pointer;transition:transform .15s,filter .15s;box-shadow:0 2px 5px #00000012}button:hover{filter:brightness(.96);transform:translateY(-1px)}button:active{transform:translateY(0)}.green{background:#16a34a!important}.red{background:#dc2626!important}.orange{background:#ea580c!important}.gray{background:#64748b!important}.purple{background:#7c3aed!important}input,select,textarea{padding:9px;border:1px solid #cbd5e1;border-radius:7px;width:100%}.table{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1250px}th,td{padding:8px;border-bottom:1px solid #e2e8f0;font-size:13px;white-space:nowrap;text-align:left}th{background:#f8fafc}.badge{padding:5px 9px;border-radius:18px;font-weight:bold}.paid{background:#dcfce7;color:#166534}.partial{background:#fef3c7;color:#92400e}.unpaid{background:#fee2e2;color:#991b1b}.hidden{display:none}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:10px;z-index:5}.modal.show{display:flex}.box{background:white;border-radius:15px;padding:20px;width:min(920px,100%);max-height:95vh;overflow:auto}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}.full,.title{grid-column:1/-1}.title{color:#2563eb;font-weight:bold;border-bottom:1px solid #ddd;padding:7px}.actions{text-align:right;margin-top:15px}.info{background:#eff6ff;padding:11px;border-radius:9px;margin:10px 0}@media(max-width:850px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.full,.title{grid-column:auto}}
+</style></head><body>
+<header><div class="wrap"><h1>🏢 Tenant Management Dashboard</h1><div>Building A & B • Permanent Tenant Information + Monthly Rent & Electricity</div></div></header>
+<div class="wrap">
+<div class="cards"><div class="card">Active Tenants<b id="ct">0</b></div><div class="card">Occupied Rooms<b id="cr">0</b></div><div class="card">Monthly Payable<b id="cp">₹0</b></div><div class="card">Collected<b id="cc">₹0</b></div><div class="card">Pending<b id="cn">₹0</b></div></div>
+<div class="tabs">
+<button onclick="show('dash')">📊 Monthly Dashboard</button><button onclick="show('info')">👥 Tenant Info</button><button onclick="show('building','A')">🏢 Building A</button><button onclick="show('building','B')">🏢 Building B</button><button onclick="show('settings')">⚙️ Settings</button>
+</div>
+
+<section id="dash" class="panel"><div class="toolbar"><label>Month <input id="month" type="month"></label><button class="green" onclick="tenantForm()">＋ Add Tenant</button><button class="purple" onclick="monthlyForm()">＋ Monthly Entry</button><button class="gray" onclick="exportMonthly()">📥 Export</button>
+<button class="green" onclick="shareAllWhatsApp()">📲 Share All on WhatsApp</button>
+<button class="purple" onclick="backupJSON()">⬇ JSON Backup</button>
+<button class="gray" onclick="document.getElementById('jsonFile').click()">⬆ JSON Import</button>
+<input id="jsonFile" type="file" accept=".json,application/json" style="display:none" onchange="importJSON(event)">
+<button class="red" onclick="clearAllData()">🗑 Clear Data</button>
+<button class="orange" onclick="window.print()">🖨 Print</button></div>
+<div class="info">Tenant information is saved as a <b>Master Record</b>. Every month you only enter new rent/light readings. Previous months remain saved and editable.</div>
+<div class="table"><table><thead><tr><th>Building</th><th>Room</th><th>Tenant</th><th>Type</th><th>Rent</th><th>Prev Reading</th><th>Current</th><th>Units</th><th>Unit Rate</th><th>Light Bill</th><th>Maintenance</th><th>Previous Balance</th><th>Total Payable</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead><tbody id="mb"></tbody></table></div></section>
+
+<section id="info" class="panel hidden"><div class="toolbar"><button class="green" onclick="tenantForm()">＋ Add Tenant</button><input id="search" placeholder="Search tenant / room / mobile" oninput="renderInfo()"><button class="gray" onclick="exportInfo()">📥 Export Tenant Info</button></div>
+<div class="table"><table><thead><tr><th>Building</th><th>Room</th><th>Tenant</th><th>Room Type</th><th>Mobile</th><th>Occupation</th><th>Living Since</th><th>Aadhaar</th><th>Current Address</th><th>Previous Address</th><th>Family</th><th>Action</th></tr></thead><tbody id="ib"></tbody></table></div></section>
+
+<section id="building" class="panel hidden"><h2 id="btitle"></h2><div class="table"><table><thead><tr><th>Room</th><th>Tenant</th><th>Type</th><th>Mobile</th><th>Occupation</th><th>Rent</th><th>Action</th></tr></thead><tbody id="bb"></tbody></table></div></section>
+
+<section id="settings" class="panel hidden"><h2>⚙️ Common Settings</h2><div class="grid"><div>Electricity Rate ₹ / Unit<input id="rate" type="number" min="0"></div><div>Maintenance ₹ / Month<input id="maint" type="number" min="0"></div></div><div class="actions"><button class="green" onclick="saveSettings()">Save Settings</button></div></section>
+</div>
+
+<div id="tenantModal" class="modal"><div class="box"><h2 id="tenantTitle">Add Tenant</h2><form onsubmit="saveTenant(event)"><input type="hidden" id="tid"><div class="grid">
+<div class="title">👤 Tenant Master Information</div>
+<div>Building<select id="tb"><option>A</option><option>B</option></select></div><div>Room No.<input id="room" required></div><div>Tenant Name<input id="name" required></div>
+<div>Room Type<select id="rtype"><option>Single Room</option><option>Double Room</option><option>1BHK</option></select></div><div>Mobile<input id="mobile"></div><div>Occupation / Work<input id="occupation"></div><div>Living Since<input id="since" type="date"></div><div>Aadhaar No.<input id="aadhaar" maxlength="12"></div>
+<div class="full">Current Address<textarea id="address"></textarea></div><div class="full">Previous Address<textarea id="previous"></textarea></div><div class="full">Family Members / Persons Staying<textarea id="family"></textarea></div>
+<div class="title">Two Known Persons / References</div>
+<div>Person 1 Name<input id="ref1name"></div><div>Person 1 Mobile<input id="ref1mobile"></div><div class="full">Person 1 Address<textarea id="ref1address"></textarea></div>
+<div>Person 2 Name<input id="ref2name"></div><div>Person 2 Mobile<input id="ref2mobile"></div><div class="full">Person 2 Address<textarea id="ref2address"></textarea></div>
+<div class="full">Notes<textarea id="notes"></textarea></div>
+</div><div class="actions"><button type="button" class="gray" onclick="closeModal('tenantModal')">Cancel</button><button class="green">Save Tenant</button></div></form></div></div>
+
+<div id="monthModal" class="modal"><div class="box"><h2>📅 Monthly Rent & Light Bill Entry</h2><form onsubmit="saveMonthly(event)"><div class="grid">
+<div>Tenant<select id="mt" required></select></div><div>Month<input id="mm" type="month" required></div><div>Rent ₹<input id="rent" type="number" min="0"></div>
+<div>Previous Light Reading<input id="prev" type="number" min="0"></div><div>Current Light Reading<input id="cur" type="number" min="0"></div><div>Unit Rate ₹ / Unit<input id="mrate" type="number" min="0" step="0.01"></div>
+<div>Maintenance Amount ₹<input id="mmaint" type="number" min="0" step="0.01"></div><div>Paid Amount ₹<input id="paid" type="number" min="0" step="0.01"></div>
+<div class="full info" id="calc"></div></div><div class="actions"><button type="button" class="gray" onclick="closeModal('monthModal')">Cancel</button><button class="green">Save Monthly Entry</button></div></form></div></div>
+
+<div id="historyModal" class="modal"><div class="box"><div class="toolbar" style="justify-content:space-between"><h2 id="historyTitle">Tenant Monthly History</h2><button class="gray" onclick="closeModal('historyModal')">✕ Close</button></div><div class="info">Month-wise rent, electricity, payment and balance history for this tenant.</div><div class="table"><table style="min-width:1050px"><thead><tr><th>Month</th><th>Rent</th><th>Units</th><th>Light Bill</th><th>Maintenance</th><th>Previous Balance</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead><tbody id="historyBody"></tbody></table></div><div class="actions"><button class="red" onclick="deleteTenantHistory()">🗑 Delete All History</button></div></div></div>
+<script>
+const TK='TENANT_MASTER_2026',MK='TENANT_MONTHLY_2026',SK='TENANT_SETTINGS_2026';
+let tenants=JSON.parse(localStorage.getItem(TK)||'[]'),months=JSON.parse(localStorage.getItem(MK)||'[]'),settings=JSON.parse(localStorage.getItem(SK)||'{"rate":10,"maint":0}'),view='dash',building='',historyTenantId='';
+const $=id=>document.getElementById(id),money=n=>'₹'+(+n||0).toLocaleString('en-IN',{maximumFractionDigits:2}),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const active=()=>tenants.filter(t=>t.active!==false),entry=(id,mo)=>months.find(x=>x.tid===id&&x.month===mo);
+function calc(e){let units=Math.max(0,(+e.cur||0)-(+e.prev||0)),rate=+(e.rate??settings.rate)||0,maint=+(e.maint??settings.maint)||0,light=units*rate,previousBalance=+(e.previousBalance)||0,total=(+e.rent||0)+light+maint+previousBalance,paid=Math.max(0,+e.paid||0),bal=Math.max(0,total-paid);return{units,rate,light,maint,previousBalance,total,paid,bal,status:bal===0?'Paid':paid>0?'Partial':'Unpaid'}}
+function persist(){localStorage.setItem(TK,JSON.stringify(tenants));localStorage.setItem(MK,JSON.stringify(months));localStorage.setItem(SK,JSON.stringify(settings))}
+function render(){
+ let mo=$('month').value||new Date().toISOString().slice(0,7);$('month').value=mo;
+ if(view==='dash')$('mb').innerHTML=active().map(t=>{let e=entry(t.id,mo)||{rent:t.rent||0,prev:0,cur:0,paid:0},c=calc(e);return `<tr><td>${t.building}</td><td>${esc(t.room)}</td><td>${esc(t.name)}</td><td>${esc(t.type)}</td><td>${money(e.rent)}</td><td>${e.prev||0}</td><td>${e.cur||0}</td><td>${c.units}</td><td>${money(c.rate)}</td><td>${money(c.light)}</td><td>${money(c.maint)}</td><td>${money(c.previousBalance)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(c.bal)}</td><td><span class="badge ${c.status.toLowerCase()}">${c.status}</span></td><td><button onclick="monthlyForm('${t.id}')">Edit</button> <button class="green" onclick="shareTenantWhatsApp('${t.id}','${mo}')">📲 WhatsApp</button> <button class="purple" onclick="showTenantHistory('${t.id}')">📚 History</button></td></tr>`}).join('')||'<tr><td colspan="15">No tenants found.</td></tr>';
+ cards();renderInfo();renderBuilding()
+}
+function cards(){let mo=$('month').value,a=active(),pay=0,col=0,pen=0;a.forEach(t=>{let e=entry(t.id,mo)||{rent:t.rent||0},c=calc(e);pay+=c.total;col+=c.paid;pen+=c.bal});$('ct').textContent=a.length;$('cr').textContent=new Set(a.map(t=>t.building+'-'+t.room)).size;$('cp').textContent=money(pay);$('cc').textContent=money(col);$('cn').textContent=money(pen)}
+function renderInfo(){let q=($('search')?.value||'').toLowerCase();$('ib').innerHTML=active().filter(t=>(t.name+' '+t.room+' '+t.mobile).toLowerCase().includes(q)).map(t=>`<tr><td>${t.building}</td><td>${esc(t.room)}</td><td>${esc(t.name)}</td><td>${esc(t.type)}</td><td>${esc(t.mobile)}</td><td>${esc(t.occupation)}</td><td>${t.since||''}</td><td>${esc(t.aadhaar)}</td><td>${esc(t.address)}</td><td>${esc(t.previous)}</td><td>${esc(t.family)}</td><td><button onclick="tenantForm('${t.id}')">Edit</button> <button class="orange" onclick="replaceTenant('${t.id}')">Replace</button> <button class="red" onclick="deleteTenant('${t.id}')">🗑 Delete</button> <button class="purple" onclick="showTenantHistory('${t.id}')">📚 History</button></td></tr>`).join('')||'<tr><td colspan="12">No tenant found.</td></tr>'}
+function renderBuilding(){if(!building)return;$('btitle').textContent='🏢 Building '+building;$('bb').innerHTML=active().filter(t=>t.building===building).map(t=>`<tr><td>${esc(t.room)}</td><td>${esc(t.name)}</td><td>${esc(t.type)}</td><td>${esc(t.mobile)}</td><td>${esc(t.occupation)}</td><td>${money(t.rent)}</td><td><button onclick="tenantForm('${t.id}')">Edit</button> <button class="orange" onclick="replaceTenant('${t.id}')">Replace</button></td></tr>`).join('')}
+function show(v,b=''){view=v;building=b;['dash','info','building','settings'].forEach(x=>$(x).classList.add('hidden'));$(v).classList.remove('hidden');render()}
+function tenantForm(id=''){let t=tenants.find(x=>x.id===id);$('tenantModal').classList.add('show');$('tenantTitle').textContent=t?'Edit Tenant':'Add Tenant';$('tid').value=t?.id||'';$('tb').value=t?.building||'A';$('room').value=t?.room||'';$('name').value=t?.name||'';$('rtype').value=t?.type||'Single Room';$('mobile').value=t?.mobile||'';$('occupation').value=t?.occupation||'';$('since').value=t?.since||'';$('aadhaar').value=t?.aadhaar||'';$('address').value=t?.address||'';$('previous').value=t?.previous||'';$('family').value=t?.family||'';$('ref1name').value=t?.ref1name||'';$('ref1mobile').value=t?.ref1mobile||'';$('ref1address').value=t?.ref1address||'';$('ref2name').value=t?.ref2name||'';$('ref2mobile').value=t?.ref2mobile||'';$('ref2address').value=t?.ref2address||'';$('notes').value=t?.notes||''}
+function saveTenant(e){e.preventDefault();let id=$('tid').value||crypto.randomUUID(),old=tenants.find(t=>t.id===id),t={id,building:$('tb').value,room:$('room').value,name:$('name').value,type:$('rtype').value,mobile:$('mobile').value,occupation:$('occupation').value,since:$('since').value,aadhaar:$('aadhaar').value,address:$('address').value,previous:$('previous').value,family:$('family').value,ref1name:$('ref1name').value,ref1mobile:$('ref1mobile').value,ref1address:$('ref1address').value,ref2name:$('ref2name').value,ref2mobile:$('ref2mobile').value,ref2address:$('ref2address').value,notes:$('notes').value,rent:old?.rent||0,active:true};let i=tenants.findIndex(x=>x.id===id);i<0?tenants.push(t):tenants[i]=t;persist();closeModal('tenantModal');render()}
+function replaceTenant(id){let old=tenants.find(t=>t.id===id);if(!old)return;if(confirm('Replace tenant in Room '+old.room+'? Old tenant will be archived and monthly history will remain.')){old.active=false;old.replacedOn=new Date().toISOString();persist();tenantForm();$('tb').value=old.building;$('room').value=old.room}}
+function deleteTenant(id){if(confirm('Permanently delete tenant and all monthly records?')){tenants=tenants.filter(t=>t.id!==id);months=months.filter(m=>m.tid!==id);persist();render()}}
+function monthlyForm(id=''){if(!active().length)return alert('Please add a tenant first.');$('monthModal').classList.add('show');$('mt').innerHTML=active().map(t=>`<option value="${t.id}">${t.building} - Room ${esc(t.room)} - ${esc(t.name)}</option>`).join('');$('mt').value=id||active()[0].id;$('mm').value=$('month').value;fillMonthly()}
+function prevMonth(m){let d=new Date(m+'-01T12:00:00');d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function priorBal(tid,mo){let e=entry(tid,prevMonth(mo));return e?calc(e).bal:0}
+function fillMonthly(){let e=entry($('mt').value,$('mm').value),t=tenants.find(x=>x.id===$('mt').value);$('rent').value=e?.rent??t?.rent??0;$('prev').value=e?.prev??0;$('cur').value=e?.cur??0;$('mrate').value=e?.rate??settings.rate;$('mmaint').value=e?.maint??settings.maint;$('paid').value=e?.paid??0;preview()}
+function preview(){let tid=$('mt').value,mo=$('mm').value,previousBalance=entry(tid,mo)?.previousBalance??priorBal(tid,mo),c=calc({rent:+$('rent').value,prev:+$('prev').value,cur:+$('cur').value,rate:+$('mrate').value,maint:+$('mmaint').value,previousBalance,paid:+$('paid').value});$('calc').innerHTML=`Units Used: <b>${c.units}</b> × Rate ${money(c.rate)} = Light Bill <b>${money(c.light)}</b><br>Maintenance: <b>${money(c.maint)}</b><br>Previous Balance: <b>${money(c.previousBalance)}</b><br>Total Payable: <b>${money(c.total)}</b> | Paid: <b>${money(c.paid)}</b> | Remaining: <b>${money(c.bal)}</b> | <b>${c.status}</b>`}
+function saveMonthly(e){e.preventDefault();let tid=$('mt').value,mo=$('mm').value,old=entry(tid,mo),x={id:old?.id||crypto.randomUUID(),tid,month:mo,rent:+$('rent').value||0,prev:+$('prev').value||0,cur:+$('cur').value||0,rate:+$('mrate').value||0,maint:+$('mmaint').value||0,previousBalance:old?.previousBalance??priorBal(tid,mo),paid:+$('paid').value||0};let i=months.findIndex(z=>z.tid===tid&&z.month===mo);i<0?months.push(x):months[i]=x;persist();$('month').value=mo;closeModal('monthModal');render()}
+function closeModal(id){$(id).classList.remove('show')}
+function saveSettings(){settings={rate:+$('rate').value||0,maint:+$('maint').value||0};persist();render();alert('Settings saved')}
+function download(rows,name){let s=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+s],{type:'text/csv'}));a.download=name;a.click()}
+function exportMonthly(){let mo=$('month').value,r=[['Building','Room','Tenant','Room Type','Month','Rent','Previous Reading','Current Reading','Units','Unit Rate','Electricity','Maintenance','Previous Balance','Total Payable','Paid','Balance','Status']];active().forEach(t=>{let e=entry(t.id,mo)||{rent:t.rent||0},c=calc(e);r.push([t.building,t.room,t.name,t.type,mo,e.rent,e.prev,e.cur,c.units,c.rate,c.light,c.maint,c.previousBalance,c.total,c.paid,c.bal,c.status])});download(r,'Monthly_Tenant_'+mo+'.csv')}
+function exportInfo(){let r=[['Building','Room','Tenant','Room Type','Mobile','Occupation','Living Since','Aadhaar','Current Address','Previous Address','Family Members','Ref1 Name','Ref1 Mobile','Ref1 Address','Ref2 Name','Ref2 Mobile','Ref2 Address','Notes']];active().forEach(t=>r.push([t.building,t.room,t.name,t.type,t.mobile,t.occupation,t.since,t.aadhaar,t.address,t.previous,t.family,t.ref1name,t.ref1mobile,t.ref1address,t.ref2name,t.ref2mobile,t.ref2address,t.notes]));download(r,'Tenant_Master_Info.csv')}
+
+
+function showTenantHistory(id){
+ const t=tenants.find(x=>x.id===id);if(!t)return;
+ historyTenantId=id;
+ $('historyTitle').textContent='📚 History — '+t.name+' (Room '+t.room+')';
+ renderTenantHistory();
+ $('historyModal').classList.add('show');
+}
+function renderTenantHistory(){
+ const rows=months.filter(x=>x.tid===historyTenantId).sort((a,b)=>b.month.localeCompare(a.month));
+ $('historyBody').innerHTML=rows.map(e=>{
+  const c=calc(e);
+  return `<tr><td>${esc(e.month)}</td><td>${money(e.rent)}</td><td>${c.units}</td><td>${money(c.light)}</td><td>${money(c.maint)}</td><td>${money(c.previousBalance)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(c.bal)}</td><td><span class="badge ${c.status.toLowerCase()}">${c.status}</span></td><td><button class="blue" onclick="editHistoryEntry('${e.month}')">✏️ Edit</button> <button class="red" onclick="deleteHistoryEntry('${e.month}')">🗑 Delete</button></td></tr>`;
+ }).join('')||'<tr><td colspan="11">No monthly history found for this tenant.</td></tr>';
+}
+function editHistoryEntry(mo){monthlyForm(historyTenantId);$('mm').value=mo;fillMonthly();}
+function deleteHistoryEntry(mo){
+ if(!confirm('Delete '+mo+' ki monthly entry?'))return;
+ months=months.filter(x=>!(x.tid===historyTenantId&&x.month===mo));persist();render();renderTenantHistory();
+}
+function deleteTenantHistory(){
+ const count=months.filter(x=>x.tid===historyTenantId).length;
+ if(!count)return alert('Is tenant ki history nahi hai.');
+ if(!confirm('Is tenant ki saari monthly history permanently delete karni hai? Tenant master information safe rahegi.'))return;
+ months=months.filter(x=>x.tid!==historyTenantId);persist();render();renderTenantHistory();
+}
+
+function waUrl(phone,text){
+ const digits=String(phone||'').replace(/\D/g,'');
+ const number=digits.length===10?'91'+digits:digits;
+ return 'https://wa.me/'+number+'?text='+encodeURIComponent(text);
+}
+function tenantMonthlyText(t,mo){
+ const e=entry(t.id,mo)||{rent:t.rent||0,prev:0,cur:0,paid:0};
+ const c=calc(e);
+ return `नमस्ते ${t.name||''},\n\n🏠 किराया विवरण — ${mo}\nBuilding: ${t.building||'-'} | Room: ${t.room||'-'}\nकिराया: ${money(e.rent)}\nबिजली यूनिट: ${c.units} (${e.prev||0} से ${e.cur||0})\nबिजली बिल: ${money(c.light)}\nमेंटेनेंस: ${money(c.maint)}\nपिछला बकाया: ${money(c.previousBalance)}\nकुल देय: ${money(c.total)}\nजमा: ${money(c.paid)}\nबाकी: ${money(c.bal)}\nस्थिति: ${c.status}\n\nधन्यवाद।`;
+}
+function shareTenantWhatsApp(id,mo){
+ const t=tenants.find(x=>x.id===id); if(!t)return;
+ window.open(waUrl(t.mobile,tenantMonthlyText(t,mo)),'_blank');
+}
+function shareAllWhatsApp(){
+ const mo=$('month').value||new Date().toISOString().slice(0,7), list=active();
+ if(!list.length){alert('Share karne ke liye tenant nahi hai.');return;}
+ const text=`📋 Monthly Rent Summary — ${mo}\n\n`+list.map(t=>tenantMonthlyText(t,mo)).join('\n\n--------------------\n\n');
+ window.open(waUrl('',text),'_blank');
+}
+function backupJSON(){
+ const data={app:'Tenant Management',version:1,exportedAt:new Date().toISOString(),tenants,months,settings};
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+ a.download='Tenant_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+}
+function importJSON(ev){
+ const file=ev.target.files&&ev.target.files[0];if(!file)return;
+ const reader=new FileReader();
+ reader.onload=()=>{
+  try{
+   const data=JSON.parse(reader.result);
+   if(!data||!Array.isArray(data.tenants)||!Array.isArray(data.months)||!data.settings)throw new Error('Invalid');
+   if(!confirm('Import se current data replace hoga. Continue?'))return;
+   tenants=data.tenants;months=data.months;settings=data.settings;
+   persist();$('rate').value=settings.rate??10;$('maint').value=settings.maint??0;render();
+   alert('JSON backup import ho gaya.');
+  }catch(e){alert('Invalid JSON backup file.');}
+  finally{$('jsonFile').value='';}
+ };
+ reader.readAsText(file);
+}
+function clearAllData(){
+ if(!confirm('Saare tenants, monthly entries aur settings permanently delete honge. Continue?'))return;
+ if(!confirm('Final confirmation: Kya aap backup le chuke hain?'))return;
+ tenants=[];months=[];settings={rate:10,maint:0};persist();
+ $('rate').value=10;$('maint').value=0;render();alert('All data cleared.');
+}
+
+$('month').value=new Date().toISOString().slice(0,7);$('rate').value=settings.rate;$('maint').value=settings.maint;['mt','mm'].forEach(x=>$(x).addEventListener('change',fillMonthly));['rent','prev','cur','mrate','mmaint','paid'].forEach(x=>$(x).addEventListener('input',preview));render();
+</script></body></html>
